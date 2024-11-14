@@ -9,10 +9,12 @@ import starflow/providers
 pub type Name =
   String
 
-/// Type alias for model names. Used by providers to identify specific model versions.
+/// Type alias for model temperature setting. Controls randomness in model outputs.
 ///
-/// ## Examples
-/// - `"claude-3-5-sonnet-20241022"` for Anthropic
+/// ## Range
+/// - 0.0: Most deterministic, best for analytical tasks
+/// - 1.0: Most random, best for creative tasks
+/// - Typical values: 0.0 - 1.0
 ///
 pub type Temperature =
   Float

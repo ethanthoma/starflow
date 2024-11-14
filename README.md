@@ -11,7 +11,7 @@ Starflow is a Gleam library for building stateful chains of LLM interactions. It
 ## Installation
 
 ```sh
-gleam add starflow@1
+gleam add starflow
 ```
 
 ## Quick Start

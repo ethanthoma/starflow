@@ -21,42 +21,42 @@ pub type GameState {
   GameState(target: Int, guesses: List(Int), won: Bool)
 }
 
-pub fn number_guess_test() -> Result(state.State(GameState), String) {
+type State =
+  state.State(GameState)
+
+pub fn test_case() -> Result(State, String) {
   let seed = seed.random()
 
   use env_api_key <- result.try(
     envoy.get("ANTHROPIC_API_KEY")
     |> result.replace_error("api key not set!"),
   )
-  let api_key = api_key.new(providers.Anthropic, env_api_key)
 
-  let generator = random.int(1, 10)
-  let target = random.sample(generator, seed)
-  let initial_state = GameState(target: target, guesses: [], won: False)
+  let flow =
+    api_key.new(providers.Anthropic, env_api_key)
+    |> model.new
+    |> starflow.new
+    |> starflow.with_prompt(prompt)
+    |> starflow.with_parser(parser)
 
-  let flow = flow(api_key)
+  let state =
+    random.int(1, 10)
+    |> random.sample(seed)
+    |> GameState(guesses: [], won: False)
+    |> state.new
+  use state <- result.try(state |> run(flow))
 
-  let result = run(state.new(initial_state), flow)
-
-  case result {
-    Ok(_) -> Nil
-    Error(err) -> io.println_error(err)
-  }
-
-  result
+  Ok(state)
 }
 
-fn run(
-  state: state.State(GameState),
-  flow: starflow.Flow(GameState),
-) -> Result(state.State(GameState), String) {
+fn run(state: State, flow) -> Result(State, String) {
   use state <- result.try(
     starflow.invoke(state, flow) |> result.map_error(string.inspect),
   )
 
   case state.any {
     GameState(won: True, ..) -> {
-      io.debug(
+      io.println(
         "Claude correctly guessed "
         <> string.inspect(state.any.target)
         <> " and won!",
@@ -66,7 +66,7 @@ fn run(
     GameState(guesses: guesses, ..) -> {
       case list.length(guesses) >= 5 {
         True -> {
-          io.debug(
+          io.println(
             "Claude failed more than "
             <> string.inspect(state.any.guesses)
             <> " times...good luck next time!",
@@ -76,7 +76,7 @@ fn run(
         False -> {
           let assert Ok(last_guess) = list.first(state.any.guesses)
 
-          io.debug(
+          io.println(
             "Oops, the guess "
             <> string.inspect(last_guess)
             <> " was incorrect.  Try again!",
@@ -88,15 +88,9 @@ fn run(
   }
 }
 
-fn flow(api_key: api_key.APIKey) {
-  let model = model.new(api_key)
+fn prompt(state: state.State(GameState)) {
+  let game_state = state.any
 
-  starflow.new(model)
-  |> starflow.with_prompt(prompt)
-  |> starflow.with_parser(parser)
-}
-
-fn prompt(game_state: GameState) {
   let previous_guesses = case game_state.guesses {
     [] -> ""
     guesses ->
@@ -112,8 +106,8 @@ fn prompt(game_state: GameState) {
   [state.TextContent(prompt_text)]
 }
 
-fn parser(state: state.State(GameState), response) -> state.State(GameState) {
-  let state = transform.parser_default(state, response)
+fn parser(state: State, response, tool_uses) -> State {
+  let state = transform.parser_default(state, response, tool_uses)
 
   let assert Ok(regex) = regex.from_string("GUESS: (\\d+)")
   let content = case response.content {
@@ -130,7 +124,7 @@ fn parser(state: state.State(GameState), response) -> state.State(GameState) {
     _ -> option.None
   }
 
-  let game_state = case guess {
+  let any = case guess {
     option.Some(n) -> {
       let guesses = [n, ..state.any.guesses]
       let won = n == state.any.target
@@ -139,5 +133,5 @@ fn parser(state: state.State(GameState), response) -> state.State(GameState) {
     option.None -> state.any
   }
 
-  state.State(..state, any: game_state)
+  state.State(..state, any:)
 }

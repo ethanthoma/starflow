@@ -4,6 +4,7 @@ import gleam/httpc
 import gleam/json
 import gleam/result
 import gleam/string
+import starflow/tool
 
 import starflow/api_key
 import starflow/decoder
@@ -95,7 +96,11 @@ fn add_headers(
 /// create_message(model, messages)
 /// ```
 ///
-pub fn create_message(model: model.Model, messages: List(state.Message)) {
+pub fn create_message(
+  model: model.Model,
+  messages: List(state.Message),
+  tools: List(tool.Tool),
+) {
   use req <- result.try(
     request.to(string.concat([providers.url(model.provider), "/messages"]))
     |> result.map_error(fn(_) { DecodingError }),
@@ -105,7 +110,9 @@ pub fn create_message(model: model.Model, messages: List(state.Message)) {
     req
     |> request.set_method(http.Post)
     |> add_headers(model, model.api_key)
-    |> request.set_body(encoder.encode(model, messages) |> json.to_string)
+    |> request.set_body(
+      encoder.encode(model, messages, tools) |> json.to_string,
+    )
 
   use resp <- result.try(
     httpc.send(req)

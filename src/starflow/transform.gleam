@@ -1,5 +1,6 @@
 import gleam/list
 import gleam/string
+import starflow/tool
 
 import starflow/state
 
@@ -19,7 +20,7 @@ import starflow/state
 /// ```
 ///
 pub type Prompt(any) =
-  fn(any) -> List(state.Content)
+  fn(state.State(any)) -> List(state.Content)
 
 /// Default prompt transformer that simply inspects the state and wraps it
 /// in a TextContent block.
@@ -34,8 +35,8 @@ pub type Prompt(any) =
 /// prompt_default(state)  // Returns [TextContent("42")]
 /// ```
 ///
-pub fn prompt_default(any) -> List(state.Content) {
-  [state.TextContent(string.inspect(any))]
+pub fn prompt_default(state: state.State(any)) -> List(state.Content) {
+  [state.TextContent(string.inspect(state.any))]
 }
 
 /// A function that updates the chain's state based on the model's response.
@@ -59,7 +60,8 @@ pub fn prompt_default(any) -> List(state.Content) {
 /// ```
 ///
 pub type Parser(any) =
-  fn(state.State(any), state.Response) -> state.State(any)
+  fn(state.State(any), state.Response, List(#(String, tool.ToolResult))) ->
+    state.State(any)
 
 /// Default parser transformer function that:
 /// 1. Preserves the message history by appending the model's response
@@ -83,6 +85,7 @@ pub type Parser(any) =
 pub fn parser_default(
   state: state.State(any),
   last_response: state.Response,
+  tool_results: List(#(String, tool.ToolResult)),
 ) -> state.State(any) {
   let usage = last_response.usage
 
@@ -90,9 +93,24 @@ pub fn parser_default(
 
   let message = state.Message("assistant", content)
 
+  let tool_message =
+    list.fold(tool_results, "", fn(acc, tool_result) {
+      let #(name, value) = tool_result
+
+      acc
+      <> "The tool "
+      <> name
+      <> " returned result "
+      <> string.inspect(value)
+      <> "\n"
+    })
+    |> state.TextContent
+    |> list.wrap
+    |> state.Message("user", _)
+
   state.State(
     ..state,
-    messages: list.append(state.messages, [message]),
+    messages: list.append(state.messages, [message, tool_message]),
     usage: usage,
   )
 }

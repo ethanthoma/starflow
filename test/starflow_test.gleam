@@ -1,8 +1,11 @@
 //import gleeunit
-import starflow_test/number_guess_test
+import gleam/io
+import gleam/result
+import starflow_test/joke_test as test_case
 
 pub fn main() {
   //gleeunit.main()
 
-  number_guess_test.number_guess_test()
+  use err <- result.map_error(test_case.test_case())
+  io.println_error(err)
 }

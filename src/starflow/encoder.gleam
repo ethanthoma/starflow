@@ -3,12 +3,18 @@ import gleam/json
 
 import starflow/model
 import starflow/state
+import starflow/tool
 
-pub fn encode(model: model.Model, messages: List(state.Message)) {
+pub fn encode(
+  model: model.Model,
+  messages: List(state.Message),
+  tools: List(tool.Tool),
+) {
   json.object([
     #("model", json.string(model.name)),
     #("max_tokens", json.int(model.max_tokens)),
     #("messages", json.array(messages, message)),
+    #("tools", json.array(tools, tool.to_json)),
   ])
 }
 

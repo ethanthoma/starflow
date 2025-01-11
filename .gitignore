@@ -13,6 +13,8 @@
 !src/*.gleam
 !src/starflow/
 !src/starflow/*.gleam
+!/src/tools/
+!/src/tools/*.gleam
 
 !test/
 !test/*.gleam

@@ -4,11 +4,8 @@ import gleam/result
 import starflow/api_request
 import starflow/model
 import starflow/state
+import starflow/tool
 import starflow/transform
-
-pub type NoModel
-
-pub type HasModel
 
 /// Represents a flow of transformations from state to prompt to response and back to state.
 ///
@@ -43,6 +40,7 @@ pub type Flow(any) {
     model: model.Model,
     prompt: transform.Prompt(any),
     parser: transform.Parser(any),
+    tools: List(tool.Tool),
   )
 }
 
@@ -63,6 +61,7 @@ pub fn new(model: model.Model) -> Flow(any) {
     model: model,
     prompt: transform.prompt_default,
     parser: transform.parser_default,
+    tools: [],
   )
 }
 
@@ -77,7 +76,7 @@ pub fn new(model: model.Model) -> Flow(any) {
 /// ```
 ///
 pub fn with_model(flow: Flow(any), model: model.Model) -> Flow(any) {
-  Flow(model: model, prompt: flow.prompt, parser: flow.parser)
+  Flow(..flow, model: model)
 }
 
 /// Sets a custom prompt transformer for the Flow.
@@ -93,7 +92,7 @@ pub fn with_model(flow: Flow(any), model: model.Model) -> Flow(any) {
 /// ```
 ///
 pub fn with_prompt(flow: Flow(any), prompt: transform.Prompt(any)) -> Flow(any) {
-  Flow(model: flow.model, prompt: prompt, parser: flow.parser)
+  Flow(..flow, prompt: prompt)
 }
 
 /// Sets a custom response parser for the Flow.
@@ -116,7 +115,11 @@ pub fn with_prompt(flow: Flow(any), prompt: transform.Prompt(any)) -> Flow(any) 
 /// ```
 ///
 pub fn with_parser(flow: Flow(any), parser: transform.Parser(any)) -> Flow(any) {
-  Flow(model: flow.model, prompt: flow.prompt, parser: parser)
+  Flow(..flow, parser: parser)
+}
+
+pub fn with_tool(flow: Flow(any), tool: tool.Tool) -> Flow(any) {
+  Flow(..flow, tools: list.prepend(flow.tools, tool))
 }
 
 /// Executes one step of the Flow:
@@ -154,13 +157,34 @@ pub fn invoke(
 
   let prompt = flow.prompt
 
-  let message = state.Message(role: "user", content: prompt(state.any))
+  let message = state.Message(role: "user", content: prompt(state))
 
   let messages = list.append(state.messages, [message])
 
-  use resp <- result.try(api_request.create_message(model, messages))
+  use resp <- result.try(api_request.create_message(model, messages, flow.tools))
 
-  let state = flow.parser(state, resp)
+  flow |> use_tools(resp) |> flow.parser(state, resp, _) |> Ok
+}
 
-  Ok(state)
+fn use_tools(
+  flow: Flow(any),
+  resp: state.Response,
+) -> List(#(String, tool.ToolResult)) {
+  {
+    use content <- list.map(resp.content)
+
+    case content {
+      state.ToolContent(_id, name, input) -> {
+        use tool <- result.try(
+          list.find(flow.tools, fn(tool: tool.Tool) { tool.name == name }),
+        )
+
+        tool.apply(input)
+        |> result.map(fn(a) { #(tool.name, a) })
+        |> result.replace_error(Nil)
+      }
+      _ -> Error(Nil)
+    }
+  }
+  |> result.values
 }

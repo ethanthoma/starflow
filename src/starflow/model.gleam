@@ -1,4 +1,3 @@
-import starflow/api_key
 import starflow/providers
 
 /// Type alias for model names. Used by providers to identify specific model versions.
@@ -32,8 +31,7 @@ pub type MaxTokens =
 /// Configuration for a language model, including provider details and generation parameters.
 ///
 /// ## Fields
-/// - `provider`: The AI provider (e.g., Anthropic)
-/// - `api_key`: Authentication key for the provider
+/// - `provider`: The provider and its connection config (e.g., Anthropic or Ollama)
 /// - `name`: Specific model identifier
 /// - `temperature`: Controls output randomness (0.0 - 1.0)
 /// - `max_tokens`: Maximum tokens in model response
@@ -42,18 +40,20 @@ pub type MaxTokens =
 ///
 /// ```gleam
 /// // Default Anthropic configuration
-/// let model = new(anthropic_api_key)
+/// let model = new(providers.anthropic("your-key-here"))
+///
+/// // Swap to a local Ollama server (one line)
+/// let model = new(providers.ollama())
 ///
 /// // Custom configuration
-/// let model = new(api_key)
+/// let model =
+///   new(providers.anthropic("your-key-here"))
 ///   |> with_name("claude-3-opus-20241022")
-///   |> with_temperature(0.9)
 /// ```
 ///
 pub type Model {
   Model(
     provider: providers.Provider,
-    api_key: api_key.APIKey,
     name: Name,
     temperature: Temperature,
     max_tokens: MaxTokens,
@@ -62,25 +62,22 @@ pub type Model {
 
 /// Creates a new model configuration with provider-specific defaults.
 ///
-/// Currently supported providers:
-/// - Anthropic:
-///   - Model: "claude-3-5-sonnet-20241022"
-///   - Temperature: 0.7
-///   - Max Tokens: 1024
+/// Defaults per provider:
+/// - Anthropic: `"claude-3-5-sonnet-20241022"`, temperature 0.7, max tokens 1024
+/// - Ollama: `"llama3.2"`, temperature 0.7, max tokens 1024
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// let api_key = api_key.new(providers.Anthropic, "your-key-here")
-/// let model = new(api_key)
+/// let model = new(providers.anthropic("your-key-here"))
+/// let model = new(providers.ollama())
 /// ```
 ///
-pub fn new(api_key: api_key.APIKey) -> Model {
-  let provider = api_key.provider
-
+pub fn new(provider: providers.Provider) -> Model {
   case provider {
-    providers.Anthropic ->
-      Model(provider, api_key, "claude-3-5-sonnet-20241022", 0.7, 1024)
+    providers.Anthropic(..) ->
+      Model(provider, "claude-3-5-sonnet-20241022", 0.7, 1024)
+    providers.Ollama(..) -> Model(provider, "llama3.2", 0.7, 1024)
   }
 }
 

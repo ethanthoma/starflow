@@ -1,52 +1,40 @@
-/// Represents supported AI service providers.
+/// Represents a supported LLM provider together with the configuration that
+/// provider needs to be reached. Each variant carries exactly its own
+/// requirements, so unusable combinations (such as an API key for a keyless
+/// local server) cannot be represented.
 ///
 /// ## Variants
-/// - `Anthropic`: Provider for Claude and other Anthropic models
+/// - `Anthropic`: Claude's hosted API, authenticated with an API key
+/// - `Ollama`: a local (or self-hosted) Ollama server, reached over its
+///   OpenAI-compatible API at the given host
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// let provider = Anthropic
-/// let model = model.new(provider, api_key, "claude-3-sonnet-20240229")
+/// let model = model.new(providers.anthropic("sk-ant-..."))
+/// let model = model.new(providers.ollama())
+/// let model = model.new(providers.ollama_at("http://gpu-box:11434"))
 /// ```
 ///
 pub type Provider {
-  Anthropic
+  Anthropic(api_key: String)
+  Ollama(host: String)
 }
 
-/// Returns the base URL for the API of the specified provider.
-///
-/// ## Examples
-///
-/// ```gleam
-/// url(Anthropic)  // Returns "https://api.anthropic.com/v1"
-/// ```
-///
-/// ## Provider URLs
-/// - Anthropic: https://api.anthropic.com/v1
-///
-pub fn url(provider: Provider) -> String {
-  case provider {
-    Anthropic -> "https://api.anthropic.com/v1"
-  }
+const default_ollama_host = "http://localhost:11434"
+
+/// Creates an Anthropic provider from a Claude API key.
+pub fn anthropic(api_key: String) -> Provider {
+  Anthropic(api_key:)
 }
 
-/// Returns the API version string required by the specified provider.
-///
-/// This version identifier is used in API request headers to ensure
-/// compatibility with the provider's API.
-///
-/// ## Examples
-///
-/// ```gleam
-/// version(Anthropic)  // Returns "2023-06-01"
-/// ```
-///
-/// ## Provider Versions
-/// - Anthropic: 2023-06-01 (Claude API version)
-///
-pub fn version(provider: Provider) -> String {
-  case provider {
-    Anthropic -> "2023-06-01"
-  }
+/// Creates an Ollama provider pointing at the default local host
+/// (`http://localhost:11434`).
+pub fn ollama() -> Provider {
+  Ollama(default_ollama_host)
+}
+
+/// Creates an Ollama provider pointing at a custom host.
+pub fn ollama_at(host: String) -> Provider {
+  Ollama(host:)
 }

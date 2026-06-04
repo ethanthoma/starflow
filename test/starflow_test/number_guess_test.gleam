@@ -10,7 +10,6 @@ import envoy
 import prng/random
 
 import starflow
-import starflow/api_key
 import starflow/model
 import starflow/providers
 import starflow/state
@@ -32,7 +31,7 @@ pub fn test_case() -> Result(State, String) {
   )
 
   let flow =
-    api_key.new(providers.Anthropic, env_api_key)
+    providers.anthropic(env_api_key)
     |> model.new
     |> starflow.new
     |> starflow.with_prompt(prompt)

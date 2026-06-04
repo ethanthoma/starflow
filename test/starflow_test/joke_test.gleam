@@ -8,7 +8,6 @@ import envoy
 import given
 
 import starflow
-import starflow/api_key
 import starflow/model
 import starflow/providers
 import starflow/state
@@ -18,9 +17,7 @@ pub fn test_case() {
     envoy.get("ANTHROPIC_API_KEY")
     |> result.replace_error("api key not set!"),
   )
-  let api_key = api_key.new(providers.Anthropic, env_api_key)
-
-  let model = model.new(api_key)
+  let model = model.new(providers.anthropic(env_api_key))
 
   let prompt = fn(_state) {
     let joke_query = "Tell me a joke."

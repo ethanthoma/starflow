@@ -8,7 +8,6 @@ import envoy
 import given
 
 import starflow
-import starflow/api_key
 import starflow/model
 import starflow/providers
 import starflow/state
@@ -26,8 +25,7 @@ pub fn test_case() {
   )
 
   let flow =
-    providers.Anthropic
-    |> api_key.new(env_api_key)
+    providers.anthropic(env_api_key)
     |> model.new
     |> starflow.new
     |> starflow.with_prompt(prompt)

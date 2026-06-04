@@ -3,10 +3,14 @@
 [![Package Version](https://img.shields.io/hexpm/v/flow)](https://hex.pm/packages/starflow)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/starflow/)
 
-Starflow is a Gleam library for building stateful chains of LLM interactions. It provides a simple, type-safe way to create flows that transform state into prompts, interact with language models, and parse responses back into state.
+Starflow is a Gleam library for building stateful chains of LLM interactions. It
+provides a simple, type-safe way to create flows that transform state into
+prompts, interact with language models, and parse responses back into state.
 
 > [!NOTE]
-> This library currently only supports Claude's send_message API
+>
+> Supports Anthropic's Claude and Ollama (local LLMs, via its OpenAI-compatible
+> API). Streaming is not yet supported.
 
 ## Installation
 
@@ -25,20 +29,18 @@ import gleam/string
 import envoy
 
 import starflow
-import starflow/api_key
 import starflow/model
 import starflow/providers
 import starflow/state
 
 pub fn main() {
   let result = {
-    // Setup API key and model
+    // Setup provider and model
     use env_api_key <- result.try(
       envoy.get("ANTHROPIC_API_KEY")
       |> result.replace_error("api key not set!"),
     )
-    let api_key = api_key.new(providers.Anthropic, env_api_key)
-    let model = model.new(api_key)
+    let model = model.new(providers.anthropic(env_api_key))
 
     // Define prompt transformer
     let prompt = fn(state) {
@@ -64,18 +66,35 @@ pub fn main() {
 ## Key Features
 
 ### State Management
+
 - Type-safe state that can hold any custom data
 - Automatic conversation history tracking
 - Token usage statistics
 
 ### Transformers
+
 - Custom prompt generation from state
 - Flexible response parsing back to state
 - Default transformers for simple use cases
 
 ### Provider Support
-- Currently supports Anthropic's Claude
-- Extensible provider system for future LLMs
+
+- Anthropic's Claude (hosted API)
+- Ollama (local LLMs, via its OpenAI-compatible API), no API key required
+- Each provider carries its own config, so swapping is a one-line change
+
+```gleam
+// Anthropic
+let model = model.new(providers.anthropic(api_key))
+
+// Local Ollama (defaults to http://localhost:11434)
+let model =
+  model.new(providers.ollama())
+  |> model.with_name("llama3.2")
+
+// Ollama on a custom host
+let model = model.new(providers.ollama_at("http://gpu-box:11434"))
+```
 
 ## Examples
 
@@ -84,6 +103,7 @@ See the [test directory](./test/starflow_test/) for examples!
 ## Common Patterns
 
 ### Simple Question-Answer
+
 ```gleam
 let flow =
   starflow.new(model)
@@ -95,6 +115,7 @@ starflow.invoke(state.new("What is 2+2?"), flow)
 ```
 
 ### Stateful Interactions
+
 ```gleam
 // Define custom state type
 pub type GameState {
@@ -115,6 +136,7 @@ let game_flow =
 ```
 
 ### Response Parsing
+
 ```gleam
 let flow =
   starflow.new(model)
@@ -136,6 +158,7 @@ gleam run   # Run the project
 ```
 
 ## Coming Soon
+
 - Chain composition for complex flows
 - More sophisticated state management
 - Additional provider support
@@ -144,4 +167,5 @@ gleam run   # Run the project
 
 ## Documentation
 
-For detailed documentation visit [hexdocs.pm/starflow](https://hexdocs.pm/starflow).
+For detailed documentation visit
+[hexdocs.pm/starflow](https://hexdocs.pm/starflow).

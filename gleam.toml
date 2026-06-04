@@ -3,19 +3,22 @@ version = "1.1.0"
 
 target = "erlang"
 
+gleam = ">= 1.5.0"
+
 description = "A library for building stateful chains of LLM interactions!"
 licences = ["Apache-2.0"]
 
 repository = { type = "github", user = "ethanthoma", repo = "starflow" }
 
 [dependencies]
-gleam_stdlib = ">= 0.44.0 and < 1.0.0"
-gleam_http = ">= 3.7.0 and < 4.0.0"
-gleam_httpc = ">= 3.0.0 and < 4.0.0"
-gleam_json = ">= 2.0.0 and < 3.0.0"
-given = ">= 4.1.1 and < 5.0.0"
+gleam_stdlib = ">= 0.60.0 and < 2.0.0"
+gleam_http = ">= 4.0.0 and < 5.0.0"
+gleam_httpc = ">= 5.0.0 and < 6.0.0"
+gleam_json = ">= 3.0.0 and < 4.0.0"
+given = ">= 6.0.0 and < 7.0.0"
 
 [dev-dependencies]
 envoy = ">= 1.0.2 and < 2.0.0"
 gleeunit = ">= 1.0.0 and < 2.0.0"
-prng = ">= 3.0.3 and < 4.0.0"
+prng = ">= 5.0.0 and < 6.0.0"
+gleam_regexp = ">= 1.0.0 and < 2.0.0"

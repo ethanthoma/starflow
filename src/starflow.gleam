@@ -91,7 +91,10 @@ pub fn with_model(flow: Flow(any), model: model.Model) -> Flow(any) {
 ///   })
 /// ```
 ///
-pub fn with_prompt(flow: Flow(any), prompt: transform.Prompt(any)) -> Flow(any) {
+pub fn with_prompt(
+  flow: Flow(any),
+  prompt: transform.Prompt(any),
+) -> Flow(any) {
   Flow(..flow, prompt: prompt)
 }
 
@@ -114,7 +117,10 @@ pub fn with_prompt(flow: Flow(any), prompt: transform.Prompt(any)) -> Flow(any) 
 ///   })
 /// ```
 ///
-pub fn with_parser(flow: Flow(any), parser: transform.Parser(any)) -> Flow(any) {
+pub fn with_parser(
+  flow: Flow(any),
+  parser: transform.Parser(any),
+) -> Flow(any) {
   Flow(..flow, parser: parser)
 }
 

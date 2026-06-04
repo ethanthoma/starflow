@@ -22,7 +22,7 @@ pub fn test_case() {
 
   let model = model.new(api_key)
 
-  let prompt = fn(state) {
+  let prompt = fn(_state) {
     let joke_query = "Tell me a joke."
 
     [state.TextContent(joke_query)]

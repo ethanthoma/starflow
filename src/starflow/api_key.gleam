@@ -22,7 +22,7 @@ import starflow/providers
 /// ```
 ///
 pub type APIKey {
-  APIKey(provider: providers.Provider, String)
+  APIKey(provider: providers.Provider, key: String)
 }
 
 /// Creates a new APIKey with the specified provider and key value.

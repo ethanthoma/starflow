@@ -122,7 +122,7 @@ pub fn create_message(
   case resp.status {
     200 -> {
       use response <- result.try(
-        json.decode(resp.body, decoder.response)
+        json.parse(resp.body, decoder.response())
         |> result.map_error(fn(_) { DecodingError }),
       )
 

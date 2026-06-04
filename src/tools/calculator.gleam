@@ -1,4 +1,5 @@
 import gleam/dynamic
+import gleam/dynamic/decode
 import gleam/int
 import gleam/result
 
@@ -34,7 +35,7 @@ pub fn tool() -> tool.Tool {
 }
 
 fn apply(input: dynamic.Dynamic) {
-  use Calculator(op, a, b) <- result.map(decoder(input))
+  use Calculator(op, a, b) <- result.map(decode.run(input, decoder()))
 
   case op {
     Add -> a +. b
@@ -45,43 +46,24 @@ fn apply(input: dynamic.Dynamic) {
   |> tool.Number
 }
 
-fn decoder(
-  input: dynamic.Dynamic,
-) -> Result(Calculator, List(dynamic.DecodeError)) {
-  input
-  |> dynamic.decode3(
-    Calculator,
-    dynamic.field(named: "operation", of: fn(a) {
-      use a <- result.try(dynamic.string(a))
+fn decoder() -> decode.Decoder(Calculator) {
+  use op <- decode.field("operation", operation())
+  use a <- decode.field("a", number())
+  use b <- decode.field("b", number())
+  decode.success(Calculator(op, a, b))
+}
 
-      case a {
-        "add" -> Ok(Add)
-        "subtract" -> Ok(Subtract)
-        "multiply" -> Ok(Multiply)
-        "divide" -> Ok(Divide)
-        _ ->
-          Error([
-            dynamic.DecodeError(
-              "one of add, subtract, multiple, and divide",
-              a,
-              [],
-            ),
-          ])
-      }
-    }),
-    dynamic.field(
-      named: "a",
-      of: dynamic.any([
-        dynamic.float,
-        fn(x) { x |> dynamic.int |> result.map(int.to_float) },
-      ]),
-    ),
-    dynamic.field(
-      named: "b",
-      of: dynamic.any([
-        dynamic.float,
-        fn(x) { x |> dynamic.int |> result.map(int.to_float) },
-      ]),
-    ),
-  )
+fn operation() -> decode.Decoder(Operation) {
+  use name <- decode.then(decode.string)
+  case name {
+    "add" -> decode.success(Add)
+    "subtract" -> decode.success(Subtract)
+    "multiply" -> decode.success(Multiply)
+    "divide" -> decode.success(Divide)
+    _ -> decode.failure(Add, "Operation")
+  }
+}
+
+fn number() -> decode.Decoder(Float) {
+  decode.one_of(decode.float, [decode.int |> decode.map(int.to_float)])
 }

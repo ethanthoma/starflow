@@ -2,13 +2,12 @@ import gleam/int
 import gleam/io
 import gleam/list
 import gleam/option
-import gleam/regex
+import gleam/regexp
 import gleam/result
 import gleam/string
 
 import envoy
 import prng/random
-import prng/seed
 
 import starflow
 import starflow/api_key
@@ -25,7 +24,7 @@ type State =
   state.State(GameState)
 
 pub fn test_case() -> Result(State, String) {
-  let seed = seed.random()
+  let seed = random.new_seed(11)
 
   use env_api_key <- result.try(
     envoy.get("ANTHROPIC_API_KEY")
@@ -39,10 +38,9 @@ pub fn test_case() -> Result(State, String) {
     |> starflow.with_prompt(prompt)
     |> starflow.with_parser(parser)
 
+  let #(target, _seed) = random.step(random.int(1, 10), seed)
   let state =
-    random.int(1, 10)
-    |> random.sample(seed)
-    |> GameState(guesses: [], won: False)
+    GameState(target, guesses: [], won: False)
     |> state.new
   use state <- result.try(state |> run(flow))
 
@@ -109,14 +107,14 @@ fn prompt(state: state.State(GameState)) {
 fn parser(state: State, response, tool_uses) -> State {
   let state = transform.parser_default(state, response, tool_uses)
 
-  let assert Ok(regex) = regex.from_string("GUESS: (\\d+)")
+  let assert Ok(re) = regexp.from_string("GUESS: (\\d+)")
   let content = case response.content {
     [state.TextContent(text)] -> text
     _ -> ""
   }
 
-  let guess = case regex.scan(regex, content) {
-    [regex.Match(_, [option.Some(num)]), ..] ->
+  let guess = case regexp.scan(re, content) {
+    [regexp.Match(_, [option.Some(num)]), ..] ->
       case int.parse(num) {
         Ok(n) -> option.Some(n)
         Error(_) -> option.None

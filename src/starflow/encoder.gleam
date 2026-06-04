@@ -1,4 +1,4 @@
-import gleam/dynamic
+import gleam/dynamic/decode
 import gleam/json
 
 import starflow/model
@@ -35,7 +35,7 @@ fn content(content: state.Content) -> json.Json {
         #("source", image_source(source)),
       ])
     state.ToolContent(id, name, input) -> {
-      let assert Ok(input) = dynamic.string(input)
+      let assert Ok(input) = decode.run(input, decode.string)
 
       json.object([
         #("type", json.string("tool_use")),

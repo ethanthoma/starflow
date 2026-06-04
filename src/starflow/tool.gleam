@@ -1,8 +1,8 @@
 import gleam/dict
 import gleam/dynamic
+import gleam/dynamic/decode
 import gleam/json
 import gleam/list
-import gleam/result
 
 import starflow/schema
 
@@ -15,7 +15,7 @@ pub type Tool {
     description: String,
     schema: schema.Schema,
     output: schema.Schema,
-    apply: fn(dynamic.Dynamic) -> Result(ToolResult, List(dynamic.DecodeError)),
+    apply: fn(dynamic.Dynamic) -> Result(ToolResult, List(decode.DecodeError)),
   )
 }
 
@@ -32,7 +32,10 @@ pub type ToolResult {
   Enum(String)
 }
 
-pub fn result(tool_use: #(String, dynamic.Dynamic), tools: List(Tool)) {
+pub fn result(
+  tool_use: #(String, dynamic.Dynamic),
+  tools: List(Tool),
+) -> Result(ToolResult, List(decode.DecodeError)) {
   let #(name, tool_res) = tool_use
 
   let assert Ok(tool) =
@@ -40,66 +43,44 @@ pub fn result(tool_use: #(String, dynamic.Dynamic), tools: List(Tool)) {
 
   let schema.Schema(json) = tool.output
 
-  json
-  |> json.to_string
-  |> json.decode(using: decode_schema(_, tool_res))
+  case json.parse(json.to_string(json), decode.dynamic) {
+    Ok(schema_json) -> decode.run(tool_res, schema_decoder(schema_json))
+    Error(_) -> Error([decode.DecodeError("schema", "invalid", [])])
+  }
 }
 
-fn decode_schema(
-  schema_json: dynamic.Dynamic,
-  from: dynamic.Dynamic,
-) -> Result(ToolResult, List(dynamic.DecodeError)) {
-  use object_type <- result.try(
-    schema_json |> dynamic.field(named: "type", of: dynamic.string),
-  )
-
-  case object_type {
-    "string" -> dynamic.string(from:) |> result.map(String)
-    "number" -> dynamic.float(from:) |> result.map(Number)
-    "integer" -> dynamic.int(from:) |> result.map(Integer)
-    "boolean" -> dynamic.bool(from:) |> result.map(Boolean)
-    "null" -> Ok(Null)
-    "array" -> {
-      use items_schema <- result.try(
-        schema_json
-        |> dynamic.field("items", Ok),
-      )
-
-      use items <- result.map(
-        from |> dynamic.list(of: decode_schema(items_schema, _)),
-      )
-
-      Array(items)
-    }
-    "object" -> {
-      use dict <- result.try(
-        schema_json
-        |> dynamic.field("properties", dynamic.dict(dynamic.string, Ok)),
-      )
-
-      use list <- result.map(
-        {
-          use #(key, value) <- list.map(dict |> dict.to_list)
-
-          use dyn <- result.try(from |> dynamic.field(key, Ok))
-
-          use value <- result.map(dyn |> decode_schema(value))
-
-          #(key, value)
-        }
-        |> result.all,
-      )
-
-      Object(list)
-    }
-    _ ->
-      Error([
-        dynamic.DecodeError(
-          expected: "valid schema type",
-          found: object_type,
-          path: [],
-        ),
-      ])
+fn schema_decoder(schema_json: dynamic.Dynamic) -> decode.Decoder(ToolResult) {
+  case decode.run(schema_json, decode.at(["type"], decode.string)) {
+    Ok("string") -> decode.string |> decode.map(String)
+    Ok("number") -> decode.float |> decode.map(Number)
+    Ok("integer") -> decode.int |> decode.map(Integer)
+    Ok("boolean") -> decode.bool |> decode.map(Boolean)
+    Ok("null") -> decode.success(Null)
+    Ok("array") ->
+      case decode.run(schema_json, decode.at(["items"], decode.dynamic)) {
+        Ok(items) -> decode.list(schema_decoder(items)) |> decode.map(Array)
+        Error(_) -> decode.failure(Null, "array schema with items")
+      }
+    Ok("object") ->
+      case
+        decode.run(
+          schema_json,
+          decode.at(["properties"], decode.dict(decode.string, decode.dynamic)),
+        )
+      {
+        Ok(properties) ->
+          properties
+          |> dict.to_list
+          |> list.fold(decode.success([]), fn(acc, kv) {
+            let #(key, value_schema) = kv
+            use pairs <- decode.then(acc)
+            use value <- decode.field(key, schema_decoder(value_schema))
+            decode.success([#(key, value), ..pairs])
+          })
+          |> decode.map(fn(pairs) { Object(list.reverse(pairs)) })
+        Error(_) -> decode.failure(Null, "object schema with properties")
+      }
+    _ -> decode.failure(Null, "valid schema type")
   }
 }
 
